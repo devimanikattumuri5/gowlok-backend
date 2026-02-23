@@ -57,7 +57,7 @@ router.post("/login", async (req, res) => {
 });
 
 // =============================
-// 🔔 GET PENDING WORKERS (ADMIN)
+// 🔔 GET PENDING WORKERS
 // =============================
 router.get("/pending", async (req, res) => {
   try {
@@ -70,7 +70,7 @@ router.get("/pending", async (req, res) => {
 });
 
 // =============================
-// ✅ APPROVE WORKER (ADMIN)
+// ✅ APPROVE WORKER
 // =============================
 router.put("/approve/:id", async (req, res) => {
   try {
@@ -87,6 +87,24 @@ router.put("/approve/:id", async (req, res) => {
     res.json({ message: "Worker approved", worker });
   } catch (err) {
     console.error("Approve Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// =============================
+// ❌ DELETE WORKER
+// =============================
+router.delete("/delete/:id", async (req, res) => {
+  try {
+    const worker = await Worker.findByIdAndDelete(req.params.id);
+
+    if (!worker) {
+      return res.status(404).json({ message: "Worker not found" });
+    }
+
+    res.json({ message: "Worker removed successfully" });
+  } catch (err) {
+    console.error("Delete Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
