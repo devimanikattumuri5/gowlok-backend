@@ -2,36 +2,48 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const Worker = require("../models/worker");
-const authMiddleware = require("../middleware/authMiddleware");
-
 
 // =============================
-// 👷 REGISTER WORKER
+// 👷 ADMIN REGISTER WORKER
 // =============================
 router.post("/register", async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password required" });
-  }
-
   try {
+    const { name, email, role, mobile } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ message: "Name and Email required" });
+    }
+
     const existing = await Worker.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Worker already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // 🔹 Auto Generate Worker ID
+    const workerId = "GW" + Date.now().toString().slice(-5);
+
+    // 🔹 Auto Generate Random Password
+    const rawPassword = Math.random().toString(36).slice(-8);
+
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     const worker = new Worker({
+      name,
       email,
+      role,
+      mobile,
+      workerId,
       password: hashedPassword,
+      approved: false,
+      firstLogin: true,
     });
 
     await worker.save();
 
     res.status(201).json({
-      message: "Registered. Waiting for Admin approval.",
+      message: "Worker registered successfully",
+      workerId,
+      password: rawPassword, // show once
     });
 
   } catch (err) {
@@ -45,13 +57,9 @@ router.post("/register", async (req, res) => {
 // 🔐 WORKER LOGIN
 // =============================
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password required" });
-  }
-
   try {
+    const { email, password } = req.body;
+
     const worker = await Worker.findOne({ email });
 
     if (!worker) {
@@ -72,8 +80,10 @@ router.post("/login", async (req, res) => {
       message: "Login successful",
       worker: {
         _id: worker._id,
+        name: worker.name,
         email: worker.email,
-        approved: worker.approved,
+        workerId: worker.workerId,
+        role: worker.role,
       },
     });
 
@@ -92,7 +102,6 @@ router.get("/pending", async (req, res) => {
     const workers = await Worker.find({ approved: false }).select("-password");
     res.json(workers);
   } catch (err) {
-    console.error("Fetch Pending Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -106,7 +115,6 @@ router.get("/approved", async (req, res) => {
     const workers = await Worker.find({ approved: true }).select("-password");
     res.json(workers);
   } catch (err) {
-    console.error("Fetch Approved Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -127,10 +135,9 @@ router.put("/approve/:id", async (req, res) => {
       return res.status(404).json({ message: "Worker not found" });
     }
 
-    res.json({ message: "Worker approved" });
+    res.json({ message: "Worker approved successfully" });
 
   } catch (err) {
-    console.error("Approve Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -150,7 +157,6 @@ router.delete("/delete/:id", async (req, res) => {
     res.json({ message: "Worker removed successfully" });
 
   } catch (err) {
-    console.error("Delete Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
