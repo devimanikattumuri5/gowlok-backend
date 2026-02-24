@@ -40,13 +40,52 @@ router.post("/register", async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+
+// ================= WORKER LOGIN =================
+router.post("/login", async (req, res) => {
+  try {
+    const { workerId, password } = req.body;
+
+    const worker = await Worker.findOne({ workerId });
+
+    if (!worker) {
+      return res.status(400).json({ message: "Invalid Worker ID" });
+    }
+
+    const isMatch = await bcrypt.compare(password, worker.password);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid Password" });
+    }
+
+    if (!worker.approved) {
+      return res.status(403).json({ message: "Worker not approved yet" });
+    }
+
+    res.status(200).json({
+      message: "Login Successful",
+      worker: {
+        id: worker._id,
+        name: worker.name,
+        workerId: worker.workerId,
+        role: worker.role,
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
 
 // ================= GET PENDING WORKERS =================
-// IMPORTANT: This MUST come before /:id
+// MUST COME BEFORE /:id
 router.get("/pending", async (req, res) => {
   try {
     const workers = await Worker.find({ approved: false })
@@ -54,8 +93,10 @@ router.get("/pending", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.status(200).json(workers);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -68,8 +109,10 @@ router.get("/", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.status(200).json(workers);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -89,13 +132,14 @@ router.put("/approve/:id", async (req, res) => {
     res.status(200).json({ message: "Worker Approved Successfully" });
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
 
 // ================= GET WORKER BY ID =================
-// MUST come AFTER /pending
+// MUST COME AFTER /pending
 router.get("/:id", async (req, res) => {
   try {
     const worker = await Worker.findById(req.params.id)
@@ -108,7 +152,8 @@ router.get("/:id", async (req, res) => {
     res.status(200).json(worker);
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -125,7 +170,8 @@ router.delete("/:id", async (req, res) => {
     res.status(200).json({ message: "Worker Deleted Successfully" });
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
