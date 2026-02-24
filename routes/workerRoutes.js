@@ -4,17 +4,10 @@ const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const Worker = require("../models/worker");
 
-// ================= MULTER CONFIG =================
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
+// ================= MULTER MEMORY STORAGE (Render Safe) =================
+const upload = multer({
+  storage: multer.memoryStorage(), // ✅ No disk storage
 });
-
-const upload = multer({ storage });
 
 // ================= REGISTER WORKER =================
 router.post("/register", upload.single("photo"), async (req, res) => {
@@ -33,6 +26,7 @@ router.post("/register", upload.single("photo"), async (req, res) => {
       joiningDate,
     } = req.body;
 
+    // Check existing worker
     const existing = await Worker.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Worker already exists" });
@@ -43,8 +37,13 @@ router.post("/register", upload.single("photo"), async (req, res) => {
 
     // Auto Generate Password
     const rawPassword = Math.random().toString(36).slice(-8);
-
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
+    // Convert image to Base64 (if uploaded)
+    let photoData = null;
+    if (req.file) {
+      photoData = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    }
 
     const worker = new Worker({
       name,
@@ -58,7 +57,7 @@ router.post("/register", upload.single("photo"), async (req, res) => {
       gender,
       dob: dob ? new Date(dob) : null,
       joiningDate: joiningDate ? new Date(joiningDate) : null,
-      photo: req.file ? req.file.path : null,
+      photo: photoData, // ✅ stored as base64 string
       workerId,
       password: hashedPassword,
       approved: false,
@@ -74,8 +73,8 @@ router.post("/register", upload.single("photo"), async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("REGISTER ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -106,7 +105,7 @@ router.post("/login", async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -114,12 +113,12 @@ router.post("/login", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const workers = await Worker.find()
-      .select("-password") // 🔐 Hide password
+      .select("-password")
       .sort({ createdAt: -1 });
 
     res.json(workers);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -138,7 +137,7 @@ router.put("/approve/:id", async (req, res) => {
     res.json({ message: "Worker approved successfully" });
 
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -154,7 +153,7 @@ router.delete("/:id", async (req, res) => {
     res.json({ message: "Worker deleted successfully" });
 
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -169,7 +168,7 @@ router.get("/:id", async (req, res) => {
 
     res.json(worker);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
