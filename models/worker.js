@@ -2,17 +2,12 @@ const mongoose = require("mongoose");
 
 const workerSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    name: { type: String, required: true, trim: true },
 
     email: {
       type: String,
       required: true,
       unique: true,
-      trim: true,
       lowercase: true,
     },
 
@@ -24,7 +19,6 @@ const workerSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
     },
 
     role: String,
@@ -33,6 +27,14 @@ const workerSchema = new mongoose.Schema(
     aadhar: String,
     emergency: String,
     salary: String,
+
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+    },
+
+    photo: String, // stores image path
+
     dob: Date,
     joiningDate: Date,
 
@@ -46,9 +48,7 @@ const workerSchema = new mongoose.Schema(
       default: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("Worker", workerSchema);

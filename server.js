@@ -13,6 +13,9 @@ const app = express();
 // ================= MIDDLEWARE =================
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
+app.use("/api/workers", require("./routes/workerRoutes"));
+
 
 // ================= MONGODB CONNECTION =================
 mongoose.connect(process.env.MONGO_URL)

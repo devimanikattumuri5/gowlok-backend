@@ -1,28 +1,47 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
+const multer = require("multer");
 const Worker = require("../models/worker");
 
-// =============================
-// 👷 ADMIN REGISTER WORKER
-// =============================
-router.post("/register", async (req, res) => {
-  try {
-    const { name, email, role, mobile } = req.body;
+// ================= MULTER CONFIG =================
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
 
-    if (!name || !email) {
-      return res.status(400).json({ message: "Name and Email required" });
-    }
+const upload = multer({ storage });
+
+// ================= REGISTER WORKER =================
+router.post("/register", upload.single("photo"), async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      role,
+      mobile,
+      address,
+      aadhar,
+      emergency,
+      salary,
+      gender,
+      dob,
+      joiningDate,
+    } = req.body;
 
     const existing = await Worker.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Worker already exists" });
     }
 
-    // 🔹 Auto Generate Worker ID
-    const workerId = "GW" + Date.now().toString().slice(-5);
+    // Auto Generate Worker ID
+    const workerId = "GW" + Date.now().toString().slice(-6);
 
-    // 🔹 Auto Generate Random Password
+    // Auto Generate Password
     const rawPassword = Math.random().toString(36).slice(-8);
 
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
@@ -32,6 +51,14 @@ router.post("/register", async (req, res) => {
       email,
       role,
       mobile,
+      address,
+      aadhar,
+      emergency,
+      salary,
+      gender,
+      dob: dob ? new Date(dob) : null,
+      joiningDate: joiningDate ? new Date(joiningDate) : null,
+      photo: req.file ? req.file.path : null,
       workerId,
       password: hashedPassword,
       approved: false,
@@ -43,97 +70,70 @@ router.post("/register", async (req, res) => {
     res.status(201).json({
       message: "Worker registered successfully",
       workerId,
-      password: rawPassword, // show once
+      password: rawPassword,
     });
 
   } catch (err) {
-    console.error("Register Error:", err);
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-
-// =============================
-// 🔐 WORKER LOGIN
-// =============================
+// ================= WORKER LOGIN =================
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { workerId, password } = req.body;
 
-    const worker = await Worker.findOne({ email });
-
+    const worker = await Worker.findOne({ workerId });
     if (!worker) {
-      return res.status(404).json({ message: "No account found" });
+      return res.status(400).json({ message: "Invalid Worker ID" });
     }
 
     const isMatch = await bcrypt.compare(password, worker.password);
-
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Invalid Password" });
     }
 
     if (!worker.approved) {
-      return res.status(403).json({ message: "Waiting for Admin approval" });
+      return res.status(403).json({ message: "Worker not approved yet" });
     }
 
     res.json({
       message: "Login successful",
-      worker: {
-        _id: worker._id,
-        name: worker.name,
-        email: worker.email,
-        workerId: worker.workerId,
-        role: worker.role,
-      },
+      workerMongoId: worker._id,
+      workerId: worker.workerId,
+      firstLogin: worker.firstLogin,
     });
 
   } catch (err) {
-    console.error("Login Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-
-// =============================
-// 🔔 GET PENDING WORKERS
-// =============================
-router.get("/pending", async (req, res) => {
+// ================= GET ALL WORKERS =================
+router.get("/", async (req, res) => {
   try {
-    const workers = await Worker.find({ approved: false }).select("-password");
+    const workers = await Worker.find()
+      .select("-password") // 🔐 Hide password
+      .sort({ createdAt: -1 });
+
     res.json(workers);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 });
 
-
-// =============================
-// ✅ GET APPROVED WORKERS
-// =============================
-router.get("/approved", async (req, res) => {
-  try {
-    const workers = await Worker.find({ approved: true }).select("-password");
-    res.json(workers);
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
-// =============================
-// ✅ APPROVE WORKER
-// =============================
+// ================= APPROVE WORKER =================
 router.put("/approve/:id", async (req, res) => {
   try {
-    const worker = await Worker.findByIdAndUpdate(
-      req.params.id,
-      { approved: true },
-      { new: true }
-    );
+    const worker = await Worker.findById(req.params.id);
 
     if (!worker) {
       return res.status(404).json({ message: "Worker not found" });
     }
+
+    worker.approved = true;
+    await worker.save();
 
     res.json({ message: "Worker approved successfully" });
 
@@ -142,11 +142,8 @@ router.put("/approve/:id", async (req, res) => {
   }
 });
 
-
-// =============================
-// ❌ DELETE WORKER
-// =============================
-router.delete("/delete/:id", async (req, res) => {
+// ================= DELETE WORKER =================
+router.delete("/:id", async (req, res) => {
   try {
     const worker = await Worker.findByIdAndDelete(req.params.id);
 
@@ -154,8 +151,23 @@ router.delete("/delete/:id", async (req, res) => {
       return res.status(404).json({ message: "Worker not found" });
     }
 
-    res.json({ message: "Worker removed successfully" });
+    res.json({ message: "Worker deleted successfully" });
 
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ================= GET SINGLE WORKER =================
+router.get("/:id", async (req, res) => {
+  try {
+    const worker = await Worker.findById(req.params.id).select("-password");
+
+    if (!worker) {
+      return res.status(404).json({ message: "Worker not found" });
+    }
+
+    res.json(worker);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
