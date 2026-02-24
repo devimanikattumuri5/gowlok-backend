@@ -6,6 +6,7 @@ const cors = require("cors");
 
 const cattleRoutes = require("./routes/cattleRoutes");
 const workerRoutes = require("./routes/workerRoutes");
+const adminRoutes = require("./routes/admin");   // 👈 ADD THIS
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.get("/", (req, res) => {
 // ================= ROUTES =================
 app.use("/api/cattles", cattleRoutes);
 app.use("/api/workers", workerRoutes);
+app.use("/api/admin", adminRoutes);   // 👈 REGISTER HERE
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
