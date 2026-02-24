@@ -1,4 +1,4 @@
-require("dotenv").config();   // 👈 VERY IMPORTANT
+require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const cattleRoutes = require("./routes/cattleRoutes");
 const workerRoutes = require("./routes/workerRoutes");
-const adminRoutes = require("./routes/admin");   // 👈 ADD THIS
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 
@@ -14,8 +14,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
-app.use("/api/workers", require("./routes/workerRoutes"));
 
+// ================= ROUTES =================
+app.use("/api/cattles", cattleRoutes);
+app.use("/api/workers", workerRoutes);   // ✅ ONLY ONCE
+app.use("/api/admin", adminRoutes);
+
+// ================= TEST ROUTE =================
+app.get("/", (req, res) => {
+  res.send("GAOLOG Backend Running 🐄");
+});
 
 // ================= MONGODB CONNECTION =================
 mongoose.connect(process.env.MONGO_URL)
@@ -24,16 +32,6 @@ mongoose.connect(process.env.MONGO_URL)
     console.error("MongoDB Connection Error ❌:", err);
     process.exit(1);
   });
-
-// ================= TEST ROUTE =================
-app.get("/", (req, res) => {
-  res.send("GAOLOG Backend Running 🐄");
-});
-
-// ================= ROUTES =================
-app.use("/api/cattles", cattleRoutes);
-app.use("/api/workers", workerRoutes);
-app.use("/api/admin", adminRoutes);   // 👈 REGISTER HERE
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
