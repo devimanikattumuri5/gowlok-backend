@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const Worker = require("../models/Worker");
+const Worker = require("../models/worker");
 
 
 // ================= REGISTER WORKER =================
