@@ -26,7 +26,6 @@ router.post("/register", upload.single("photo"), async (req, res) => {
       joiningDate,
     } = req.body;
 
-    // Basic validation
     if (!name || !email || !mobile) {
       return res.status(400).json({ message: "Required fields missing" });
     }
@@ -43,7 +42,6 @@ router.post("/register", upload.single("photo"), async (req, res) => {
     const plainPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
-    // ✅ HANDLE PHOTO
     let photoData = null;
     if (req.file) {
       photoData = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
@@ -129,6 +127,7 @@ router.get("/pending", async (req, res) => {
 
     res.status(200).json(workers);
   } catch (error) {
+    console.error("PENDING ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -143,6 +142,23 @@ router.get("/approved", async (req, res) => {
 
     res.status(200).json(workers);
   } catch (error) {
+    console.error("APPROVED ERROR:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+
+// ================= GET ALL WORKERS =================
+// ⚠️ MUST COME BEFORE "/:id"
+router.get("/", async (req, res) => {
+  try {
+    const workers = await Worker.find()
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(workers);
+  } catch (error) {
+    console.error("GET ALL ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -163,12 +179,14 @@ router.put("/approve/:id", async (req, res) => {
     res.status(200).json({ message: "Worker Approved Successfully" });
 
   } catch (error) {
+    console.error("APPROVE ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
 
 
 // ================= GET WORKER BY ID =================
+// ⚠️ MUST COME AFTER "/"
 router.get("/:id", async (req, res) => {
   try {
     const worker = await Worker.findById(req.params.id)
@@ -181,6 +199,7 @@ router.get("/:id", async (req, res) => {
     res.status(200).json(worker);
 
   } catch (error) {
+    console.error("GET BY ID ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -198,6 +217,7 @@ router.delete("/:id", async (req, res) => {
     res.status(200).json({ message: "Worker Deleted Successfully" });
 
   } catch (error) {
+    console.error("DELETE ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
