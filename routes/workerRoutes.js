@@ -7,18 +7,27 @@ const Worker = require("../models/worker");
 // ================= REGISTER WORKER =================
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role, mobile } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      mobile,
+      address,
+      aadhar,
+      emergency,
+      salary,
+      gender,
+      dob,
+      joiningDate,
+    } = req.body;
 
-    // Check duplicate email
     const existingWorker = await Worker.findOne({ email });
     if (existingWorker) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Generate Worker ID
     const workerId = "GW" + Math.floor(100000 + Math.random() * 900000);
-
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newWorker = new Worker({
@@ -27,6 +36,13 @@ router.post("/register", async (req, res) => {
       password: hashedPassword,
       role,
       mobile,
+      address,
+      aadhar,
+      emergency,
+      salary,
+      gender,
+      dob,
+      joiningDate,
       workerId,
       approved: false,
       firstLogin: true,
@@ -36,7 +52,7 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       message: "Worker Registered Successfully",
-      workerId: workerId,
+      workerId,
     });
 
   } catch (error) {
@@ -58,7 +74,6 @@ router.post("/login", async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, worker.password);
-
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid Password" });
     }
@@ -78,14 +93,12 @@ router.post("/login", async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
 
 
 // ================= GET PENDING WORKERS =================
-// MUST COME BEFORE /:id
 router.get("/pending", async (req, res) => {
   try {
     const workers = await Worker.find({ approved: false })
@@ -93,9 +106,21 @@ router.get("/pending", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.status(200).json(workers);
-
   } catch (error) {
-    console.error(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+
+// ================= GET APPROVED WORKERS =================
+router.get("/approved", async (req, res) => {
+  try {
+    const workers = await Worker.find({ approved: true })
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(workers);
+  } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -109,9 +134,7 @@ router.get("/", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.status(200).json(workers);
-
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -132,14 +155,12 @@ router.put("/approve/:id", async (req, res) => {
     res.status(200).json({ message: "Worker Approved Successfully" });
 
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
 
 
 // ================= GET WORKER BY ID =================
-// MUST COME AFTER /pending
 router.get("/:id", async (req, res) => {
   try {
     const worker = await Worker.findById(req.params.id)
@@ -152,7 +173,6 @@ router.get("/:id", async (req, res) => {
     res.status(200).json(worker);
 
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -170,10 +190,8 @@ router.delete("/:id", async (req, res) => {
     res.status(200).json({ message: "Worker Deleted Successfully" });
 
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
-
 
 module.exports = router;
