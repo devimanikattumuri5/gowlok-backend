@@ -1,16 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
+const multer = require("multer");
 const Worker = require("../models/worker");
+
+// ================= MULTER SETUP =================
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 
 // ================= REGISTER WORKER =================
-router.post("/register", async (req, res) => {
+router.post("/register", upload.single("photo"), async (req, res) => {
   try {
     const {
       name,
       email,
-      password,
       role,
       mobile,
       address,
@@ -22,18 +26,34 @@ router.post("/register", async (req, res) => {
       joiningDate,
     } = req.body;
 
+    // Basic validation
+    if (!name || !email || !mobile) {
+      return res.status(400).json({ message: "Required fields missing" });
+    }
+
     const existingWorker = await Worker.findOne({ email });
     if (existingWorker) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
+    // ✅ AUTO GENERATE WORKER ID
     const workerId = "GW" + Math.floor(100000 + Math.random() * 900000);
-    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ AUTO GENERATE PASSWORD
+    const plainPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    // ✅ HANDLE PHOTO
+    let photoData = null;
+    if (req.file) {
+      photoData = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    }
 
     const newWorker = new Worker({
       name,
       email,
       password: hashedPassword,
+      workerId,
       role,
       mobile,
       address,
@@ -43,7 +63,7 @@ router.post("/register", async (req, res) => {
       gender,
       dob,
       joiningDate,
-      workerId,
+      photo: photoData,
       approved: false,
       firstLogin: true,
     });
@@ -53,10 +73,11 @@ router.post("/register", async (req, res) => {
     res.status(201).json({
       message: "Worker Registered Successfully",
       workerId,
+      password: plainPassword,
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("REGISTER ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -93,6 +114,7 @@ router.post("/login", async (req, res) => {
     });
 
   } catch (error) {
+    console.error("LOGIN ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -116,20 +138,6 @@ router.get("/pending", async (req, res) => {
 router.get("/approved", async (req, res) => {
   try {
     const workers = await Worker.find({ approved: true })
-      .select("-password")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(workers);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error" });
-  }
-});
-
-
-// ================= GET ALL WORKERS =================
-router.get("/", async (req, res) => {
-  try {
-    const workers = await Worker.find()
       .select("-password")
       .sort({ createdAt: -1 });
 
@@ -193,5 +201,6 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 });
+
 
 module.exports = router;
